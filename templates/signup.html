@@ -1,0 +1,16 @@
+# SIGN UP (User Registration)
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        email = request.form["email"]
+        password = request.form["password"]
+
+        if email in users:
+            flash("User already exists. Please login.")
+            return redirect(url_for("login"))
+
+        users[email] = password
+        flash("Sign up successful. Please login.")
+        return redirect(url_for("login"))
+
+    return render_template("signup.html")

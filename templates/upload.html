@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+  <h2>Upload Meme</h2>
+
+  <form method="POST">
+    <input type="text" name="title" placeholder="Meme Title" required>
+    <input type="text" name="image" placeholder="Image URL" required>
+    <button type="submit">Upload</button>
+  </form>
+
+  <div style="margin-top:10px;">
+    <a href="{{ url_for('dashboard') }}" style="color:#7a4b2a; font-weight:bold; text-decoration:none;">
+      ← Back to Dashboard
+    </a>
+  </div>
+</div>
+{% endblock %}

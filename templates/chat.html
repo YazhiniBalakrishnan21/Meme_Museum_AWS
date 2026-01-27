@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="max-width:520px;">
+  <h2>Chat with {{ friend }}</h2>
+
+  <div style="background:#fffaf3; border:1px solid #b08a67; border-radius:14px; padding:12px;
+              height:280px; overflow-y:auto; text-align:left;">
+
+    {% if thread|length == 0 %}
+      <p style="color:#7a4b2a;">No messages yet. Say hi 😊</p>
+    {% endif %}
+
+    {% for m in thread %}
+      {% if m.sender == session['user'] %}
+        <div style="display:flex; justify-content:flex-end; margin:8px 0;">
+          <div style="background:#7a4b2a; color:#fffaf3; padding:8px 12px; border-radius:14px 14px 0 14px; max-width:75%;">
+            {{ m.text }}
+          </div>
+        </div>
+      {% else %}
+        <div style="display:flex; justify-content:flex-start; margin:8px 0;">
+          <div style="background:#e7d8c9; color:#5b361f; padding:8px 12px; border-radius:14px 14px 14px 0; max-width:75%;">
+            {{ m.text }}
+          </div>
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <form method="POST" action="{{ url_for('send', friend_email=friend) }}">
+    <input type="text" name="text" placeholder="Type a message..." required>
+    <button type="submit">Send</button>
+  </form>
+
+  <div style="margin-top:10px;">
+    <a href="{{ url_for('messages') }}" style="color:#7a4b2a; font-weight:bold; text-decoration:none;">← Back</a>
+  </div>
+</div>
+{% endblock %}

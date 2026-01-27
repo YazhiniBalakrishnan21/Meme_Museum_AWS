@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+  <h2>Messages</h2>
+  <p>Select a friend to chat:</p>
+
+  {% if friends|length == 0 %}
+    <p>No other users found. Create another account to test chatting.</p>
+  {% endif %}
+
+  {% for f in friends %}
+    <div style="margin:10px 0;">
+      <a href="{{ url_for('chat', friend_email=f) }}"
+         style="text-decoration:none; font-weight:bold; color:#7a4b2a;">
+        💬 Chat with {{ f }}
+      </a>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Dashboard</h2>
+
+<div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+  <a href="{{ url_for('upload') }}"><button style="max-width:200px;">Upload Meme</button></a>
+  <a href="{{ url_for('saved') }}"><button style="max-width:200px;">Saved</button></a>
+</div>
+
+{% for meme in memes %}
+{% set meme_index = loop.index0 %}
+
+<div class="meme">
+  <h3>{{ meme.title }}</h3>
+  <img src="{{ meme.image }}" alt="meme">
+
+  <div class="actions">
+    <a href="{{ url_for('like', index=meme_index) }}">👍 Like ({{ meme.likes }})</a>
+    <a href="#" onclick="shareMeme('{{ meme.image }}'); return false;">Share</a>
+    <a href="{{ url_for('download', index=meme_index) }}">Download</a>
+
+    <form method="POST" action="{{ url_for('save', index=meme_index) }}">
+      <button type="submit">
+        {% if session['user'] in meme.saved_by %}
+          🔖 Saved
+        {% else %}
+          🔖 Save
+        {% endif %}
+      </button>
+    </form>
+  </div>
+
+  <form method="POST" action="{{ url_for('delete', index=meme_index) }}" style="margin-top:12px;">
+    <button type="submit">🗑 Delete Meme</button>
+  </form>
+
+  <hr style="border:1px solid #d9c2ab; margin:15px 0;">
+
+  <!-- ✅ COMMENT + WHATSAPP STYLE EMOJI PICKER -->
+  <form method="POST" action="{{ url_for('comment', meme_index=meme_index) }}" style="position:relative;">
+    <input id="comment-{{ meme_index }}" type="text" name="comment"
+           placeholder="Write a comment... (Tip: Win + . for full emoji keyboard 😊)" required>
+
+    <!-- Emoji button -->
+    <button type="button"
+            onclick="toggleEmojiBox({{ meme_index }})"
+            style="width:auto; padding:6px 12px; margin-top:10px;">
+      😊
+    </button>
+
+    <!-- BIG emoji picker -->
+    <div id="emoji-box-{{ meme_index }}"
+         style="display:none; margin-top:10px; padding:10px; border:1px solid #b08a67;
+                border-radius:12px; background:#fffaf3; max-height:160px; overflow:auto;">
+
+      <div style="display:grid; grid-template-columns:repeat(10, 1fr); gap:6px;">
+        <!-- Faces -->
+        <button type="button" onclick="addEmoji({{ meme_index }}, '😀')">😀</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '😁')">😁</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '😂')">😂</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '🤣')">🤣</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '😊')">😊</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '😍')">😍</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '🥰')">🥰</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '😘')">😘</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '😎')">😎</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '😭')">😭</button>
+
+        <button type="button" onclick="addEmoji({{ meme_index }}, '😡')">😡</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '🥺')">🥺</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '🤔')">🤔</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '🤩')">🤩</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '😴')">😴</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '🤯')">🤯</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '😇')">😇</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '🤗')">🤗</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '😅')">😅</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '😬')">😬</button>
+
+        <!-- Hearts / symbols -->
+        <button type="button" onclick="addEmoji({{ meme_index }}, '❤️')">❤️</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '🧡')">🧡</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '💛')">💛</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '💚')">💚</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '💙')">💙</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '💜')">💜</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '🤎')">🤎</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '💯')">💯</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '🔥')">🔥</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '✨')">✨</button>
+
+        <!-- Common -->
+        <button type="button" onclick="addEmoji({{ meme_index }}, '👍')">👍</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '👎')">👎</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '👏')">👏</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '🙏')">🙏</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '🎉')">🎉</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '🥳')">🥳</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '💪')">💪</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '😄')">😄</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '😋')">😋</button>
+        <button type="button" onclick="addEmoji({{ meme_index }}, '🙌')">🙌</button>
+      </div>
+    </div>
+
+    <button type="submit">Post Comment</button>
+  </form>
+
+  <!-- COMMENTS -->
+  {% if meme.comments and meme.comments|length > 0 %}
+    <div style="text-align:left; margin-top:15px;">
+      <h4 style="margin-bottom:8px;">Comments</h4>
+
+      {% for c in meme.comments %}
+      {% set comment_index = loop.index0 %}
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin:6px 0;">
+          <div><b>{{ c.user }}:</b> {{ c.text }}</div>
+
+          {% if c.user == session['user'] %}
+          <form method="POST" action="{{ url_for('delete_comment', meme_index=meme_index, comment_index=comment_index) }}">
+            <button type="submit" style="width:auto; padding:6px 10px; margin:0;">Delete</button>
+          </form>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+
+{% endfor %}
+
+<script>
+function shareMeme(link) {
+  navigator.clipboard.writeText(link);
+  alert("Meme link copied!");
+}
+
+function toggleEmojiBox(index) {
+  const box = document.getElementById("emoji-box-" + index);
+  box.style.display = (box.style.display === "none" || box.style.display === "") ? "block" : "none";
+}
+
+function addEmoji(index, emoji) {
+  const input = document.getElementById("comment-" + index);
+  input.value += emoji;
+  input.focus();
+}
+</script>
+
+{% endblock %}

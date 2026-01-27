@@ -1,0 +1,85 @@
+/* RESET */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background-color: #f2f2f2;
+}
+
+/* NAVBAR */
+nav {
+    background-color: #000;
+    padding: 15px;
+    text-align: center;
+}
+
+nav a {
+    color: white;
+    margin: 0 15px;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+nav a:hover {
+    text-decoration: underline;
+}
+
+/* CENTER PAGE CONTENT */
+.content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+}
+
+/* COMMON CARD STYLE */
+.card {
+    background-color: white;
+    padding: 20px;
+    width: 320px;
+    margin: 15px 0;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* FORMS */
+form {
+    width: 100%;
+}
+
+input {
+    width: 100%;
+    padding: 8px;
+    margin: 8px 0;
+}
+
+button {
+    padding: 10px;
+    width: 100%;
+    background-color: black;
+    color: white;
+    border: none;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+button:hover {
+    background-color: #333;
+}
+
+/* MEME IMAGE */
+img {
+    border-radius: 5px;
+    margin-top: 10px;
+}
+
+/* ACTION LINKS */
+.action-btn {
+    display: inline-block;
+    margin: 8px;
+    text-decoration: none;
+    color: black;
+    font-weight: bold;
+}

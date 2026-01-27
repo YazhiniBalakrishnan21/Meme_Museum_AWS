@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Meme Museum</title>
+
+  <style>
+    * { box-sizing: border-box; font-family: "Segoe UI", Arial, sans-serif; }
+
+    body{
+      margin:0;
+      min-height:100vh;
+      background:#2b1b14; /* dark chocolate */
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+    }
+
+    nav{
+      width:100%;
+      background:#f5f0e6; /* beige */
+      padding:16px 0;
+      text-align:center;
+      border-bottom:2px solid #7a4b2a;
+    }
+    nav a{
+      color:#7a4b2a;
+      text-decoration:none;
+      margin:0 18px;
+      font-weight:700;
+      font-size:16px;
+      padding:8px 12px;
+      border-radius:10px;
+      transition:.2s;
+    }
+    nav a:hover{
+      background:#7a4b2a;
+      color:#fff7ed;
+    }
+
+    .container{
+      width:100%;
+      max-width:1000px;
+      background:#f5f0e6;
+      margin-top:30px;
+      padding:40px 20px;
+      border-radius:20px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      text-align:center;
+      box-shadow:0 12px 30px rgba(0,0,0,.35);
+    }
+
+    .card, .meme{
+      background:#fff7ed;
+      width:100%;
+      max-width:450px;
+      padding:24px;
+      border-radius:18px;
+      border:2px solid #7a4b2a;
+      box-shadow:0 8px 18px rgba(0,0,0,.15);
+      margin-bottom:24px;
+    }
+
+    h1,h2,h3,h4{ color:#5b361f; margin-top:0; }
+
+    input{
+      width:100%;
+      padding:10px;
+      margin-top:10px;
+      border-radius:10px;
+      border:1.5px solid #b08a67;
+      background:#fffaf3;
+      outline:none;
+    }
+
+    button{
+      width:100%;
+      padding:10px;
+      margin-top:14px;
+      border:none;
+      border-radius:10px;
+      background:#7a4b2a;
+      color:#fffaf3;
+      font-weight:700;
+      font-size:15px;
+      cursor:pointer;
+      transition:.2s;
+    }
+    button:hover{ background:#5b361f; }
+
+    .meme img{
+      max-width:100%;
+      border-radius:14px;
+      margin-top:10px;
+      border:1px solid #d9c2ab;
+    }
+
+    .actions{
+      margin-top:14px;
+      display:grid;
+      grid-template-columns: repeat(4, max-content);
+      justify-content:center;
+      align-items:center;
+      gap:14px;
+      white-space:nowrap;
+    }
+
+    .actions a{
+      text-decoration:none;
+      font-weight:700;
+      color:#7a4b2a;
+      padding:6px 10px;
+      border-radius:10px;
+      transition:.2s;
+      display:inline-block;
+    }
+    .actions a:hover{
+      background:#7a4b2a;
+      color:#fffaf3;
+    }
+
+    .actions button{
+      width:auto !important;
+      padding:6px 12px !important;
+      margin:0 !important;
+      font-size:14px !important;
+      border-radius:10px !important;
+      white-space:nowrap;
+    }
+    .actions form{
+      margin:0 !important;
+      display:inline-block !important;
+    }
+
+    @media (max-width: 500px) {
+      .actions{ grid-template-columns: repeat(2, max-content); }
+    }
+  </style>
+</head>
+
+<body>
+
+  <nav>
+    <a href="/">Home</a>
+    <a href="/about">About</a>
+
+    {% if session.get('user') %}
+      <a href="/dashboard">Dashboard</a>
+      <a href="/saved">Saved</a>
+      <a href="/logout">Logout</a>
+    {% else %}
+      <a href="/login">Login</a>
+      <a href="/register">Sign Up</a>
+    {% endif %}
+  </nav>
+
+  <div class="container">
+
+    <!-- ✅ Show flash messages -->
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="card">
+          {% for msg in messages %}
+            <p style="margin:6px 0; color:#5b361f; font-weight:bold;">{{ msg }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+
+</body>
+</html>

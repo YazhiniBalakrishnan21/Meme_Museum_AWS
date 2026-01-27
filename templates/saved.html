@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Saved Memes</h2>
+
+<a href="{{ url_for('dashboard') }}"><button style="max-width:200px;">Back to Dashboard</button></a>
+
+{% if memes|length == 0 %}
+  <div class="card">
+    <p>No saved memes yet.</p>
+  </div>
+{% endif %}
+
+{% for meme in memes %}
+<div class="meme">
+  <h3>{{ meme.title }}</h3>
+  <img src="{{ meme.image }}" alt="meme">
+</div>
+{% endfor %}
+
+{% endblock %}
