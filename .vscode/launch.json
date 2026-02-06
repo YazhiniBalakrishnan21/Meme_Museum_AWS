@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Flask (app.py)",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/app.py",
+      "console": "integratedTerminal",
+      "env": {
+        "FLASK_DEBUG": "1",
+        "FLASK_RUN_HOST": "0.0.0.0",
+        "FLASK_RUN_PORT": "5000"
+      }
+    }
+  ]
+}

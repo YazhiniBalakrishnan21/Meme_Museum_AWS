@@ -1,0 +1,33 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start App (Local)",
+      "type": "shell",
+      "command": "python app.py",
+      "presentation": { "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Check Prereqs (PowerShell)",
+      "type": "shell",
+      "command": "pwsh -File scripts/check_prereqs.ps1",
+      "presentation": { "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Deploy to AWS (PowerShell)",
+      "type": "shell",
+      "command": "pwsh -File scripts/deploy_cf.ps1 -KeyName \"my-keypair\" -AdminEmail \"admin@example.com\" -GitRepo \"https://github.com/<you>/<repo>.git\" -PublicSubnetIds \"subnet-aaa,subnet-bbb\" -VpcId \"vpc-xxxx\" -AdminCIDR \"YOUR_IP/32\" -Region \"us-east-1\"",
+      "presentation": { "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Validate Deployment",
+      "type": "shell",
+      "command": "python scripts/validate_deployment.py --stack MemeMuseumStack --region us-east-1",
+      "presentation": { "reveal": "always" },
+      "problemMatcher": []
+    }
+  ]
+}

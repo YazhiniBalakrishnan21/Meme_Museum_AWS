@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+  <h2>{{ meme.title }}</h2>
+  {% if meme.url %}
+    <img src="{{ meme.url }}" alt="{{ meme.title }}" style="max-width:100%;">
+  {% else %}
+    <p>Image unavailable (may have been rejected).</p>
+  {% endif %}
+
+  <p><b>Category:</b> {{ meme.category }}</p>
+  <p><b>Description:</b> {{ meme.description }}</p>
+  <p><b>Labels:</b> {{ meme.labels | join(', ') }}</p>
+  <p><b>Detected Text:</b> {{ meme.detected_text }}</p>
+
+  <p>👍 Likes: {{ meme.likes }} | 👁️ Views: {{ meme.views }} | ⬇️ Downloads: {{ meme.downloads }}</p>
+
+  <form method="POST" action="{{ url_for('comment_meme', meme_id=meme.meme_id) }}">
+    <input type="text" name="comment" placeholder="Write a comment..." required>
+    <button type="submit">Comment</button>
+  </form>
+
+  {% if meme.comments and meme.comments|length > 0 %}
+    <div style="margin-top:10px;">
+      <h4>Comments</h4>
+      {% for c in meme.comments %}
+        <div style="margin:6px 0;"><b>{{ c.user }}</b>: {{ c.text }} <small>({{ c.ts }})</small></div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div style="margin-top:12px;">
+    <a href="{{ url_for('dashboard') }}">← Back</a>
+  </div>
+</div>
+{% endblock %}

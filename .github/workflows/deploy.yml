@@ -1,0 +1,56 @@
+name: CI / Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: |
+          python -m venv venv
+          . venv/bin/activate
+          pip install -r requirements.txt
+      - name: Lint
+        run: |
+          echo "No linter configured"
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Deploy CloudFormation
+        run: |
+          aws cloudformation deploy \
+            --stack-name MemeMuseumStack \
+            --template-file infra/cloudformation/meme_museum_stack.yaml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides KeyName=${{ secrets.EC2_KEY_NAME }} AdminEmail=${{ secrets.ADMIN_EMAIL }} GitRepo=${{ github.server_url }}/${{ github.repository }}.git PublicSubnetIds=${{ secrets.PUBLIC_SUBNET_IDS }} VpcId=${{ secrets.VPC_ID }} AdminCIDR=${{ secrets.ADMIN_CIDR }}
+      - name: Set up Python for validation
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies for validation
+        run: |
+          python -m venv venv
+          . venv/bin/activate
+          pip install -r requirements.txt
+      - name: Run lab validation (ALB, TG, DynamoDB, SNS, CloudWatch)
+        env:
+          AWS_REGION: us-east-1
+        run: |
+          python scripts/validate_lab.py --stack MemeMuseumStack --region us-east-1 --admin-email "${{ secrets.ADMIN_EMAIL }}"

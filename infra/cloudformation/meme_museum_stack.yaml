@@ -1,0 +1,339 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Meme Museum infrastructure (S3, DynamoDB, SNS, EC2 with IAM role)
+
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: EC2 KeyPair for SSH access
+  AdminEmail:
+    Type: String
+    Description: Email address for SNS notifications (you must confirm subscription)
+  GitRepo:
+    Type: String
+    Description: Git repository HTTPS URL to clone (e.g. https://github.com/you/repo.git)
+    Default: ""
+  VpcId:
+    Type: String
+    Description: VPC Id where the public subnets exist (e.g. vpc-xxxx)
+  PublicSubnetIds:
+    Type: CommaDelimitedList
+    Description: Public subnet IDs for ALB and AutoScaling instances (e.g. subnet-xxxx,subnet-yyyy)
+  AdminCIDR:
+    Type: String
+    Description: CIDR block allowed to SSH to instances (e.g. 203.0.113.0/32). Use 0.0.0.0/0 only for testing.
+    Default: 0.0.0.0/0
+  InstanceType:
+    Type: String
+    Default: t3.micro
+
+Resources:
+  MemeBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  MemeUsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: MemeUsers
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: email
+          KeyType: HASH
+
+  MemeItemsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: MemeItems
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: meme_id
+          AttributeType: S
+        - AttributeName: user
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: meme_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: by_user
+          KeySchema:
+            - AttributeName: user
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  MemeLikesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: MemeLikes
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: meme_id
+          AttributeType: S
+        - AttributeName: user
+          AttributeType: S
+      KeySchema:
+        - AttributeName: meme_id
+          KeyType: HASH
+        - AttributeName: user
+          KeyType: RANGE
+
+  MemeLogsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: MemeLogs
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: MemeMuseumNotifications
+
+  NotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref NotificationTopic
+      Protocol: email
+      Endpoint: !Ref AdminEmail
+
+  GunicornLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: "/aws/mememuseum/gunicorn"
+      RetentionInDays: 14
+
+
+
+  MemeInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ec2.amazonaws.com]
+            Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+        - PolicyName: MemeMuseumPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                Resource: !Sub '${MemeBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - rekognition:DetectLabels
+                  - rekognition:DetectModerationLabels
+                  - rekognition:DetectText
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:DescribeLogStreams
+                  - logs:PutLogEvents
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref NotificationTopic
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref MemeInstanceRole
+
+  # Security group for instances: allows SSH from specified admin CIDR and HTTP from ALB
+  MemeInstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Instances SG (SSH from AdminCIDR, HTTP from ALB)
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AdminCIDR
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref MemeALBSecurityGroup
+
+  # Security group for the Application Load Balancer
+  MemeALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ALB security group (allows HTTP inbound)
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  # Application Load Balancer
+  MemeALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: MemeMuseumALB
+      Scheme: internet-facing
+      SecurityGroups: [!Ref MemeALBSecurityGroup]
+      Subnets: !Ref PublicSubnetIds
+
+  MemeTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: MemeMuseumTG
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref VpcId
+      HealthCheckPath: /health
+      TargetType: instance
+
+  MemeListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref MemeALB
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref MemeTargetGroup
+
+  # Launch template for autoscaling instances
+  MemeLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId: ami-0c02fb55956c7d316
+        InstanceType: !Ref InstanceType
+        IamInstanceProfile:
+          Arn: !GetAtt InstanceProfile.Arn
+        SecurityGroupIds: [!Ref MemeInstanceSecurityGroup]
+        KeyName: !Ref KeyName
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash -xe
+            yum update -y
+            yum install -y python3 git
+            cd /home/ec2-user
+            if [ "${GitRepo}" != "" ]; then
+              git clone ${GitRepo} app || true
+            fi
+            cd app || exit 0
+            python3 -m venv venv
+            source venv/bin/activate
+            pip install --upgrade pip
+            pip install -r requirements.txt
+            SECRET_KEY=$(openssl rand -hex 32)
+            cat > .env <<EOF
+            S3_BUCKET=${MemeBucket}
+            DYNAMO_USERS_TABLE=MemeUsers
+            DYNAMO_MEMES_TABLE=MemeItems
+            DYNAMO_LIKES_TABLE=MemeLikes
+            DYNAMO_LOGS_TABLE=MemeLogs
+            SECRET_KEY=${SECRET_KEY}
+            AWS_REGION=${AWS::Region}
+            SNS_TOPIC_ARN=${NotificationTopic}
+            EOF
+            mkdir -p /var/log/gunicorn
+            chown ec2-user:ec2-user /var/log/gunicorn || true
+            yum install -y amazon-cloudwatch-agent || true
+            cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<JSON_CONF
+            {
+              "logs": {
+                "logs_collected": {
+                  "files": {
+                    "collect_list": [
+                      {
+                        "file_path": "/var/log/gunicorn/error.log",
+                        "log_group_name": "${GunicornLogGroup}",
+                        "log_stream_name": "{instance_id}/error",
+                        "timezone": "UTC"
+                      },
+                      {
+                        "file_path": "/var/log/gunicorn/access.log",
+                        "log_group_name": "${GunicornLogGroup}",
+                        "log_stream_name": "{instance_id}/access",
+                        "timezone": "UTC"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+            JSON_CONF
+            /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a start -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json || true
+            if [ -f deployments/gunicorn.service ]; then
+              cp deployments/gunicorn.service /etc/systemd/system/gunicorn.service || true
+              systemctl daemon-reload || true
+              systemctl enable gunicorn || true
+              systemctl start gunicorn || true
+            fi
+
+  MemeAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier: !Ref PublicSubnetIds
+      LaunchTemplate:
+        LaunchTemplateId: !Ref MemeLaunchTemplate
+        Version: !GetAtt MemeLaunchTemplate.LatestVersionNumber
+      MinSize: 1
+      MaxSize: 2
+      DesiredCapacity: 1
+      TargetGroupARNs: [!Ref MemeTargetGroup]
+      Tags:
+        - Key: Name
+          Value: MemeMuseumASG
+          PropagateAtLaunch: true
+
+Outputs:
+  S3Bucket:
+    Value: !Ref MemeBucket
+  SNS_Topic_ARN:
+    Value: !Ref NotificationTopic
+  ALB_DNS:
+    Description: DNS name for the Application Load Balancer
+    Value: !GetAtt MemeALB.DNSName
+  AutoScalingGroupName:
+    Description: Name of the AutoScaling Group
+    Value: !Ref MemeAutoScalingGroup
+  TargetGroupArn:
+    Description: Target Group ARN
+    Value: !Ref MemeTargetGroup
+  GunicornLogGroupName:
+    Description: CloudWatch Log Group for gunicorn
+    Value: !Ref GunicornLogGroup
+  GitRepoParam:
+    Description: Git repo parameter supplied
+    Value: !Ref GitRepo
