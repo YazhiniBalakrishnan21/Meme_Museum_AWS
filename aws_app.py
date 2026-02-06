@@ -16,7 +16,6 @@ load_dotenv()
 # AWS CONFIGURATION
 # ==========================================
 AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
-S3_BUCKET = os.environ.get("S3_BUCKET_NAME")
 USERS_TABLE = os.environ.get("USERS_TABLE", "UsersTable")
 MEMES_TABLE = os.environ.get("MEMES_TABLE", "MemeTable")
 ACTIVITY_LOG_TABLE = os.environ.get("ACTIVITY_LOG_TABLE", "ActivityLogTable")
@@ -29,8 +28,6 @@ SNS_TOPIC_TRENDING = os.environ.get("TRENDING_ALERT_SNS_TOPIC")
 SNS_TOPIC_MODERATION = os.environ.get("MODERATION_ALERT_SNS_TOPIC")
 
 # Validate required config
-if not S3_BUCKET:
-    raise RuntimeError("S3_BUCKET_NAME environment variable is required")
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -39,7 +36,6 @@ app.secret_key = SECRET_KEY
 # AWS CLIENTS
 # ==========================================
 session_boto = boto3.Session(region_name=AWS_REGION)
-s3_client = session_boto.client("s3")
 rekognition_client = session_boto.client("rekognition")
 dynamodb_resource = session_boto.resource("dynamodb", region_name=AWS_REGION)
 sns_client = session_boto.client("sns", region_name=AWS_REGION)
@@ -69,24 +65,6 @@ def now_iso() -> str:
 def generate_meme_id() -> str:
     return str(uuid.uuid4())
 
-
-def presigned_get_url(s3_key: str, expiration: int = PRESIGNED_EXPIRATION) -> str:
-    """Generate presigned URL for S3 object retrieval"""
-    return s3_client.generate_presigned_url(
-        "get_object",
-        Params={"Bucket": S3_BUCKET, "Key": s3_key},
-        ExpiresIn=expiration,
-    )
-
-
-def upload_bytes_to_s3(bytes_data: bytes, key: str, content_type: str):
-    """Upload image bytes to S3"""
-    s3_client.put_object(
-        Bucket=S3_BUCKET,
-        Key=key,
-        Body=bytes_data,
-        ContentType=content_type
-    )
 
 
 def publish_sns(topic_arn: str, subject: str, message: str):
@@ -299,10 +277,6 @@ def dashboard():
             ExpressionAttributeValues={":user": user}
         )
         items = resp.get("Items", [])
-        # Attach presigned URLs for approved memes
-        for item in items:
-            if item.get("status") == "approved":
-                item["url"] = presigned_get_url(item.get("s3_key", ""))
     except botocore.exceptions.ClientError as e:
         print(f"DynamoDB query error: {e}")
         items = []
@@ -334,15 +308,6 @@ def upload():
         meme_id = generate_meme_id()
         user = session["user"]
         filename = file.filename or f"{meme_id}.jpg"
-        s3_key = f"memes/{user}/{meme_id}/{filename}"
-
-        # Upload to S3
-        try:
-            upload_bytes_to_s3(image_bytes, s3_key, file.content_type or "image/jpeg")
-        except Exception as e:
-            flash("Error uploading to S3.")
-            print(f"S3 upload error: {e}")
-            return redirect(url_for("upload"))
 
         # Detect labels and text
         labels, detected_text = detect_labels_and_text(image_bytes)
@@ -355,7 +320,6 @@ def upload():
             "description": description,
             "category": category,
             "tags": tags,
-            "s3_key": s3_key,
             "labels": labels,
             "detected_text": detected_text,
             "likes": 0,
@@ -425,10 +389,6 @@ def view_meme(meme_id):
         except botocore.exceptions.ClientError as e:
             print(f"Error updating views: {e}")
 
-        # Generate presigned URL for approved memes
-        if item.get("status") == "approved":
-            item["url"] = presigned_get_url(item.get("s3_key", ""))
-
         return render_template("meme.html", meme=item)
     except botocore.exceptions.ClientError as e:
         flash("Error loading meme.")
@@ -485,12 +445,6 @@ def delete_meme(meme_id):
             flash("Not authorized to delete this meme.")
             return redirect(url_for("dashboard"))
 
-        # Delete from S3
-        try:
-            s3_client.delete_object(Bucket=S3_BUCKET, Key=item.get("s3_key", ""))
-        except Exception as e:
-            print(f"Error deleting from S3: {e}")
-
         # Delete from DynamoDB
         memes_table.delete_item(Key={"meme_id": meme_id})
         log_activity("delete", user, {"meme_id": meme_id})
@@ -546,9 +500,8 @@ def download_meme(meme_id):
 
         log_activity("download", session["user"], {"meme_id": meme_id})
 
-        # Generate presigned URL and redirect
-        url = presigned_get_url(item.get("s3_key", ""), expiration=PRESIGNED_EXPIRATION)
-        return redirect(url)
+        flash("Download not available.")
+        return redirect(url_for("view_meme", meme_id=meme_id))
     except botocore.exceptions.ClientError as e:
         flash("Error downloading meme.")
         print(f"DynamoDB error: {e}")
